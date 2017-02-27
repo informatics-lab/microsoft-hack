@@ -71,11 +71,12 @@ function main() {
             if (!args || args.length == 0) {
                 session.beginDialog("/getLocation");
             } else {
-                next("hello");
+                next({response:args[0].entity});
             }
         }, 
         (session, args, next) => {
-            askMO(args)
+            // session.userData.location = session.message.text;
+            askMO(args.response)
                 .then((response)=>{
                     session.send(response.properties.forecast.text.local);
                     session.endDialog();
@@ -83,20 +84,20 @@ function main() {
         }
     ]);
     
-    bot.dialog('/getLocation', [(session, args, next) => {
-        if(!args || args.length == 0) {
-            if(!session.userData.location){
-                builder.Prompts.text(session, "Where?"); 
-            } else {
-                session.endDialog(session.userData.location);
-            }
-        } else {
-            session.endDialog(args[0].entity);
-        }
-    }, 
+    bot.dialog('/getLocation', [
         (session, args, next) => {
-            session.userData.location = session.message.text;
-            session.endDialogWithResult(session.message.text);
+            if(!args || args.length == 0) {
+                if(!session.userData.location){
+                    builder.Prompts.text(session, "Where?"); 
+                } else {
+                    session.endDialog();
+                }
+            } else {
+                session.endDialog();
+            }
+        }, 
+        (session, results) => {
+            session.endDialogWithResult(results);
         } 
     ]);
 }
