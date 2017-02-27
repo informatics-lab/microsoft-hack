@@ -1,0 +1,23 @@
+{
+  "name": "microsoft-hack",
+  "version": "1.0.0",
+  "description": "Informatics Lab Microsoft hack week",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/met-office-lab/microsoft-hack.git"
+  },
+  "author": "",
+  "license": "GPLv3",
+  "bugs": {
+    "url": "https://github.com/met-office-lab/microsoft-hack/issues"
+  },
+  "homepage": "https://github.com/met-office-lab/microsoft-hack#readme",
+  "dependencies": {
+    "botbuilder": "^3.7.0",
+    "restify": "^4.3.0"
+  }
+}
