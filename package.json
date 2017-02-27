@@ -19,6 +19,7 @@
   "dependencies": {
     "botbuilder": "^3.7.0",
     "nconf": "^0.8.4",
+    "request": "^2.79.0",
     "restify": "^4.3.0"
   }
 }
