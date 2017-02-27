@@ -1,7 +1,23 @@
 'use strict';
 
+var nconf = require('nconf');
 var restify = require('restify');
 var builder = require('botbuilder');
+
+var config = nconf.env().argv().defaults({config:'localConfig.json'});
+
+function askLuis(appId, subKey, q) {
+  var uri = `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${appId}?subscription-key=${subKey}&verbose=true&q=${q}`;
+
+  return new Promise((resolve, reject) => {
+    var options = {
+      uri: uri,
+      method : 'GET'
+    };
+    request(options, (err, response, body) => {
+      resolve([endpoint, response]);
+    })
+}
 
 function main() {
 
@@ -21,7 +37,7 @@ function main() {
   var bot = new builder.UniversalBot(connector);
   bot.dialog('/', [
     (session, args) => {
-      session.send("Hello World!!");
+      askLuis(config.get("APP_ID"), config.get("SUB_KEY"), session.message.text);
     }
   ]);
 }
