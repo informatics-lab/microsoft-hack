@@ -51,27 +51,54 @@ function main() {
     server.post('/api/messages', connector.listen());
 
     var bot = new builder.UniversalBot(connector);
-    bot.dialog('/', [
-            (session, args) => {
-            askLuis(config.get("APP_ID"), config.get("SUB_KEY"), session.message.text)
-        .then((response) => {
 
-            switch(response.topScoringIntent.intent) {
-                case("None") :
-                    session.send("Sorry I don't know what your getting at!");
-                    return;
-                case("getForecast") :
-                    askMO(response.entities[0].entity)
-                        .then((response)=>{
-                            session.send(response.properties.forecast.text.local);
-                            return;
-                        });
+    bot.dialog('/', [
+        (session, args) => {
+            askLuis(config.get("APP_ID"), config.get("SUB_KEY"), session.message.text)
+            .then((response) => {
+                switch(response.topScoringIntent.intent) {
+                    case("None") :
+                        session.send("Sorry I don't know what your getting at!");
+                        return;
+                    case("getForecast") :
+                        session.beginDialog("/getForecast", response.entities)
             };
+        });
+    }]);
+
+    bot.dialog('/getForecast', [
+        (session, args, next) => {
+            if (!args || args.length == 0) {
+                session.beginDialog("/getLocation");
+            } else {
+                next("hello");
+            }
+        }, 
+        (session, args, next) => {
+            askMO(args)
+                .then((response)=>{
+                    session.send(response.properties.forecast.text.local);
+                    session.endDialog();
+                }); 
         }
-)
-    ;
+    ]);
+    
+    bot.dialog('/getLocation', [(session, args, next) => {
+        if(!args || args.length == 0) {
+            if(!session.userData.location){
+                builder.Prompts.text(session, "Where?"); 
+            } else {
+                session.endDialog(session.userData.location);
+            }
+        } else {
+            session.endDialog(args[0].entity);
+        }
+    }, 
+        (session, args, next) => {
+            session.userData.location = session.message.text;
+            session.endDialogWithResult(session.message.text);
+        } 
+    ]);
 }
-])
-    ;
-}
+
 main();
