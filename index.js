@@ -63,6 +63,12 @@ function askLUIS(q) {
     return _askLUIS(config.get("APP_ID"), config.get("SUB_KEY"), q);
 }
 
+function getDateRange(timeBounding) {
+	var date = sugar.create(timeBounding);
+	console.log(date);
+	return date;
+}
+
 function main() {
 
     // Set up the bot server..
@@ -168,6 +174,8 @@ function main() {
             session.send("just let me think about the answer to that for a moment");
             askMO(session.conversationData.location)
                 .then((res) => {
+
+                    var dateRange = getDateRange(session.conversationData.timebounding);
 
                     var variable = getEntityVariable(session.conversationData.condition);
                     var func = getEntityComparator(session.conversationData.condition);
