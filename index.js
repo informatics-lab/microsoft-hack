@@ -1,12 +1,12 @@
 'use strict';
 
+var sugar = require('sugar');
 var nconf = require('nconf');
 var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request');
 
 var config = nconf.env().argv().file({file: 'localConfig.json'});
-
 
 function askHist(lat, lon, variable, start, end) {
     var uri;
@@ -69,9 +69,23 @@ function askLUIS(q) {
 }
 
 function getDateRange(timeBounding) {
-	var date = sugar.create(timeBounding);
-	console.log(date);
-	return date;
+    var now = new sugar.Date();
+	var date = new sugar.Date(timeBounding);
+    var startString = date.format("%Y-%m-%d");
+    
+    var future = now.isBefore(date);
+    var endString = startString;
+
+    if (timeBounding.indexOf("day") != -1) {
+        endString = date.advance("1 day").format("%Y-%m-%d");
+    }
+    else if (timeBounding.indexOf('week') != -1) {
+        endString = date.advance("1 week").format("%Y-%m-%d");
+    }
+    else if (timeBounding.indexOf('year') != -1) {
+        endString = date.advance("1 year").format("%Y-%m-%d");
+    }
+	return { start : startString, end: endString };
 }
 
 function main() {
@@ -180,8 +194,6 @@ function main() {
             askMO(session.conversationData.location)
                 .then((res) => {
 
-                    var dateRange = getDateRange(session.conversationData.timebounding);
-
                     var variable = getEntityVariable(session.conversationData.condition);
                     var func = getEntityComparator(session.conversationData.condition);
                     var timeframe = getEntityTimeframe(session.conversationData.timebounding);
@@ -241,9 +253,8 @@ function getEntityTimeframe(entity) {
         case "usual" :
             return {start: null, end: null};
         default :
-            return TobysDateFunction(entity);
+            return getDateRange(entity);
     }
 };
-
 
 main();
