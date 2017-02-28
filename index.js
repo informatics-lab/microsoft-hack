@@ -8,8 +8,13 @@ var request = require('request');
 var config = nconf.env().argv().file({file: 'localConfig.json'});
 
 
-function askHist(lat, lon, variable) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/mean/climatology?lat=${lat}&lon=${lon}`;
+function askHist(lat, lon, variable, start, end) {
+    var uri;
+    if(start && end) {
+        uri = `http://api.informaticslab.co.uk/${variable}/mean/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    } else {
+        uri = `http://api.informaticslab.co.uk/${variable}/mean/climatology?lat=${lat}&lon=${lon}`;
+    }
 
     return new Promise((resolve, reject) => {
         var options = {
@@ -179,8 +184,9 @@ function main() {
 
                     var variable = getEntityVariable(session.conversationData.condition);
                     var func = getEntityComparator(session.conversationData.condition);
-                    //decipher confidition string
-                    askHist(res.geometry.coordinates[0], res.geometry.coordinates[1], variable)
+                    var timeframe = getEntityTimeframe(session.conversationData.timebounding);
+
+                    askHist(res.geometry.coordinates[0], res.geometry.coordinates[1], variable, timeframe.start, timeframe.end)
                         .then((response)=> {
 
                             if(func(res.properties.forecast.current[variable].value, response.value)) {
@@ -227,6 +233,15 @@ function getEntityVariable(entity) {
         case "warmer" :
         case "colder" :
             return "temperature";
+    }
+};
+
+function getEntityTimeframe(entity) {
+    switch(entity) {
+        case "usual" :
+            return {start: null, end: null};
+        default :
+            return TobysDateFunction(entity);
     }
 };
 
