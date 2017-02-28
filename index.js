@@ -25,6 +25,20 @@ function askMO(location){
     })
 }
 
+function getCurrentTemperature(location) {
+    return new Promise((resolve, reject) => {
+        askMO(location)
+        .then((result)=> {
+            if (typeof result === "object") {
+                resolve(result.forecast.current.temperature.value);
+            }
+            else {
+                reject(result);
+            }
+        });
+    });
+}
+
 function _askLUIS(appId, subKey, q) {
     var uri = `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${appId}?subscription-key=${subKey}&verbose=true&q=${q}`;
 
