@@ -9,7 +9,7 @@ var config = nconf.env().argv().file({file: 'localConfig.json'});
 
 
 function askHist(lat, lon, variable) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/mean?lat=${lat}&lon=${lon}`;
+    var uri = `http://api.informaticslab.co.uk/${variable}/mean/climatology?lat=${lat}&lon=${lon}`;
 
     return new Promise((resolve, reject) => {
         var options = {
@@ -78,7 +78,7 @@ function main() {
     });
     server.post('/api/messages', connector.listen());
 
-    var bot = new builder.UniversalBot(connector);
+    var bot = new builder.UniversalBot(connector,  { persistConversationData: true });
 
     // Root dialog 
     bot.dialog('/', [
@@ -146,20 +146,21 @@ function main() {
     bot.dialog('/compareToPast', [
         // Ask the user what location they were thinking of
         (session, args, next) => {
-            if (!args || args.length == 0 || !arrayHasItemWithType(args, "location")) {
-                // Don't have a location, ask for one
+
+            if (args) {
                 args.forEach((arg) => {
                     session.conversationData[arg.type] = arg.entity;
                 });
+            }
+
+            if (!arrayHasItemWithType(args, "location")) {
+                // Don't have a location, ask for one
                 session.beginDialog("/getLocation");
             } else {
                 // Looks like we have a location, go to next step
                 // we're faking up a response object to keep all
                 // the calls simple
-                args.forEach((arg) => {
-                    session.conversationData[arg.type] = arg.entity;
-                });
-                next();
+               next();
             }
         },
         (session, args, next) => {
@@ -189,13 +190,10 @@ function main() {
 }
 
 function arrayHasItemWithType(array, type) {
-    array.forEach((item)=> {
-        if (item.type === type) {
-            return item;
-        }
+    return array.find((item) => {
+        return item.type === type;
     });
-    return false;
-};
+}
 
 function greaterThan(a,b) {
     return a > b;
