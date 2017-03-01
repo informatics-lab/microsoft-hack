@@ -1,7 +1,8 @@
 'use strict';
 
-var sugar = require('sugar');
 var nconf = require('nconf');
+var sugar = require('sugar');
+var chrono = require('chrono');
 var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request');
@@ -61,23 +62,26 @@ function askLUIS(q) {
 
 function getDateRange(timeBounding) {
 
-    var now = new sugar.Date();
 	var startDate = new sugar.Date(timeBounding);
+    var endDate = new sugar.Date(timeBounding);
 
-    // Adjust to fit inside the data that we have
     startDate.rewind("2 years");
-    var startString = startDate.format("%Y-%m-%d");
-
-    var endDate = startDate;
+    endDate.rewind("2 years");
 
     if (timeBounding.indexOf("day") != -1) {
-        endDate.advance("1 day");
+        endDate = endDate.advance("1 day");
     }
     else if (timeBounding.indexOf('week') != -1) {
-        endDate.advance("1 week");
+        startDate.beginningOfWeek();
+        endDate.endOfWeek();
+    }
+    else if (timeBounding.indexOf('month') != -1) {
+        startDate.beginningOfMonth();
+        endDate.endOfMonth();
     }
     else if (timeBounding.indexOf('year') != -1) {
-        endDate.advance("1 year");
+        startDate.beginningOfYear();
+        endDate.endOfYear();
     }
 
     var endString = endDate.format("%Y-%m-%d");
