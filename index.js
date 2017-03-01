@@ -10,16 +10,8 @@ var phrases = require('./phrases');
 
 var config = nconf.env().argv().file({file: 'localConfig.json'});
 
-function askHist(lat, lon, variable, start, end) {
-    var uri;
-    if(start && end) {
-        // weather query
-        uri = `http://api.informaticslab.co.uk/${variable}/mean/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
-    } else {
-        // climate query
-        uri = `http://api.informaticslab.co.uk/${variable}/mean/climatology?lat=${lat}&lon=${lon}`;
-    }
 
+function callAPI(uri) {
     return new Promise((resolve, reject) => {
         var options = {
             uri: uri,
@@ -32,25 +24,22 @@ function askHist(lat, lon, variable, start, end) {
                 resolve(body);
             }
         })
-    })
+    });
+}
+
+function askHistClimate(lat, lon, variable, operation, start, end) {
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    return callAPI(uri);
+}
+
+function askHistRange(lat, lon, variable, operation, start, end) {
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    return callAPI(uri);
 }
 
 function askMO(location) {
     var uri = `https://shlmog4lwa.execute-api.eu-west-1.amazonaws.com/dev/datapoint?location=${location}`;
-
-    return new Promise((resolve, reject) => {
-        var options = {
-            uri: uri,
-            method: 'GET'
-        };
-        request(options, (err, response, body) => {
-            if (response.statusCode == 200) {
-                resolve(JSON.parse(body));
-            } else {
-                resolve(body);
-            }
-        })
-    })
+    return callAPI(uri);
 }
 
 function _askLUIS(appId, subKey, q) {
@@ -95,7 +84,6 @@ function getDateRange(timeBounding) {
         endDate.endOfYear();
     }
 
-    var startString = startDate.format("%Y-%m-%d");
     var endString = endDate.format("%Y-%m-%d");
 
 	return { start : startString, end: endString };
@@ -116,7 +104,7 @@ function main() {
     });
     server.post('/api/messages', connector.listen());
 
-    var bot = new builder.UniversalBot(connector,  { persistConversationData: true });
+    var bot = new builder.UniversalBot(connector, {persistConversationData: true});
 
     // Root dialog 
     bot.dialog('/', [
@@ -140,18 +128,20 @@ function main() {
                         case("compareToPast") :
                             session.beginDialog("/compareToPast", response.entities);
                             return;
+                        case ("findOptimal") :
+                            session.beginDialog("/findOptimal", response.entities);
                     }
                 });
         }]);
-    
+
     bot.dialog('/greeting', [
         (session, args, next) => {
-            var greeting = phrases.greetings[getRandomInt(0,phrases.greetings.length)];
+            var greeting = phrases.greetings[getRandomInt(0, phrases.greetings.length)];
             session.send(greeting);
             if (!session.conversationData.greeted) {
                 session.send(phrases.info);
-                phrases.examples.forEach((phrase)=>{
-                   session.send(phrase);
+                phrases.examples.forEach((phrase)=> {
+                    session.send(phrase);
                 });
                 session.conversationData["greeted"] = true;
             }
@@ -162,7 +152,7 @@ function main() {
     bot.dialog('/help', [
         (session, args, next) => {
             session.send(phrases.info);
-            phrases.examples.forEach((phrase)=>{
+            phrases.examples.forEach((phrase)=> {
                 session.send(phrase);
             });
             session.endDialog();
@@ -229,7 +219,7 @@ function main() {
                 // Looks like we have a location, go to next step
                 // we're faking up a response object to keep all
                 // the calls simple
-               next();
+                next();
             }
         },
         (session, args, next) => {
@@ -241,11 +231,13 @@ function main() {
                     var variable = getEntityVariable(session.conversationData.condition);
                     var func = getEntityComparator(session.conversationData.condition);
                     var timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    var operation = getEntityOperation(session.conversationData.condition);
+                    session.send("getting there...");
 
-                    askHist(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, timeframe.start, timeframe.end)
+                    askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
                         .then((response)=> {
 
-                            if(func(fcst.properties.forecast.current[variable].value, response.value)) {
+                            if (func(fcst.properties.forecast.current[variable].value, response.value)) {
                                 session.send("yes");
                             } else {
                                 session.send("no");
@@ -253,6 +245,50 @@ function main() {
                             session.endDialog();
                         });
 
+                });
+        }
+    ]);
+
+    bot.dialog('/findOptimal', [
+        // Ask the user what location they were thinking of
+        (session, args, next) => {
+
+            if (args) {
+                args.forEach((arg) => {
+                    session.conversationData[arg.type] = arg.entity;
+                });
+            }
+
+            if (!arrayHasItemWithType(args, "location")) {
+                // Don't have a location, ask for one
+                session.beginDialog("/getLocation");
+            } else {
+                // Looks like we have a location, go to next step
+                // we're faking up a response object to keep all
+                // the calls simple
+                next();
+            }
+        },
+        (session, args, next) => {
+            // args.response
+            session.send("just let me crunch the numbers!");
+            askMO(session.conversationData.location)
+                .then((fcst) => {
+                    var variable = getEntityVariable(session.conversationData.condition);
+                    var timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    var operation = getEntityOperation(session.conversationData.condition);
+                    session.send("getting there...");
+
+                    askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                        .then((response)=> {
+                            session.send(response.value);
+                            session.endDialog();
+                        })
+                        .catch((err) => {
+                            console.error(err);
+                            session.send(phrases.error);
+                            session.endDialog();
+                        });
                 });
         }
     ]);
@@ -265,16 +301,16 @@ function arrayHasItemWithType(array, type) {
     });
 }
 
-function greaterThan(a,b) {
+function greaterThan(a, b) {
     return a > b;
 }
 
-function lessThan(a,b) {
+function lessThan(a, b) {
     return a < b;
 }
 
 function getEntityComparator(entity) {
-    switch(entity) {
+    switch (entity) {
         case "hotter" :
         case "warmer" :
             return greaterThan;
@@ -284,16 +320,36 @@ function getEntityComparator(entity) {
 }
 
 function getEntityVariable(entity) {
-    switch(entity) {
+    switch (entity) {
         case "hotter" :
+        case "hottest" :
         case "warmer" :
+        case "warmest" :
         case "colder" :
+        case "coldest" :
             return "temperature";
     }
 }
 
+function getEntityOperation(entity) {
+    switch (entity) {
+        case "hottest" :
+        case "warmest" :
+            return "max";
+
+        case "coldest" :
+            return "min";
+
+        case "hotter" :
+        case "warmer" :
+        case "colder" :
+            return "mean";
+
+    }
+}
+
 function getEntityTimeframe(entity) {
-    switch(entity) {
+    switch (entity) {
         case "usual" :
             return {start: null, end: null};
         default :
