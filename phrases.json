@@ -6,5 +6,6 @@
     "What is the weather in London today?",
     "Is the weather in Bristol hotter than usual today?"
   ],
-  "unknown": "Sorry, I don't know how to answer that. Ask for help to find out more about what I can do for you."
+  "unknown": "Sorry, I don't know how to answer that. Ask for help to find out more about what I can do for you.",
+  "error": "Sorry, something went wrong with the answer to that question."
 }
