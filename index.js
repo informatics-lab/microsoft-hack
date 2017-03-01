@@ -71,22 +71,28 @@ function askLUIS(q) {
 }
 
 function getDateRange(timeBounding) {
+
     var now = new sugar.Date();
-	var date = new sugar.Date(timeBounding);
-    var startString = date.format("%Y-%m-%d");
+	var startDate = new sugar.Date(timeBounding);
     
+    // Adjust to fit inside the data that we have
+    startDate.rewind("2 years");
+        
     var future = now.isBefore(date);
-    var endString = startString;
 
     if (timeBounding.indexOf("day") != -1) {
-        endString = date.advance("1 day").format("%Y-%m-%d");
+        endDate = startDate.advance("1 day");
     }
     else if (timeBounding.indexOf('week') != -1) {
-        endString = date.advance("1 week").format("%Y-%m-%d");
+        endDate = startDate.advance("1 week");
     }
     else if (timeBounding.indexOf('year') != -1) {
-        endString = date.advance("1 year").format("%Y-%m-%d");
+        endDate = startDate.advance("1 year");
     }
+
+    var startString = startDate.format("%Y-%m-%d");
+    var endString = endDate.format("%Y-%m-%d");
+
 	return { start : startString, end: endString };
 }
 
