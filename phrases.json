@@ -1,10 +1,11 @@
 {
   "greetings": ["Hi", "Hello", "Howdy", "What's up!"],
-  "info": "I'm **Cim**. Ask me questions about **weather & climate in the UK**. I'll do my best to crunch the numbers and get you the answers to your questions.",
+  "info": "I'm **Cim**. Ask me questions about **weather & climate in the UK**. I'll do my best to crunch through the numbers, and get the answers to your questions.",
   "examples": [
     "Some example phrases that I can answer are:",
     "What is the weather in London today?",
-    "Is the weather in Bristol hotter than usual today?"
+    "Is the weather in Bristol hotter than usual today?",
+    "What was the hottest day of the year last year?"
   ],
   "unknown": "Sorry, I don't know how to answer that. Ask for help to find out more about what I can do for you.",
   "error": "Sorry, something went wrong with the answer to that question."

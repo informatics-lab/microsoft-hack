@@ -2,7 +2,6 @@
 
 var nconf = require('nconf');
 var sugar = require('sugar');
-var chrono = require('chrono');
 var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request');
@@ -10,17 +9,18 @@ var phrases = require('./phrases');
 
 var config = nconf.env().argv().file({file: 'localConfig.json'});
 
-
 function callAPI(uri) {
     return new Promise((resolve, reject) => {
         var options = {
             uri: uri,
-            method: 'GET'
+            method: 'GET',
+            timeout: 120000
         };
         request(options, (err, response, body) => {
-            if (response.statusCode == 200) {
+            if (!err && response.statusCode == 200) {
                 resolve(JSON.parse(body));
             } else {
+                console.error(err,response);
                 resolve(body);
             }
         })
@@ -84,6 +84,7 @@ function getDateRange(timeBounding) {
         endDate.endOfYear();
     }
 
+    var startString = startDate.format("%Y-%m-%d");
     var endString = endDate.format("%Y-%m-%d");
 
 	return { start : startString, end: endString };
