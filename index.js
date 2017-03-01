@@ -359,5 +359,4 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 
-getDateRange("last year");
-// main();
+main();
