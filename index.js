@@ -5,14 +5,17 @@ var nconf = require('nconf');
 var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request');
+var phrases = require('./phrases');
 
 var config = nconf.env().argv().file({file: 'localConfig.json'});
 
 function askHist(lat, lon, variable, start, end) {
     var uri;
     if(start && end) {
+        // weather query
         uri = `http://api.informaticslab.co.uk/${variable}/mean/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
     } else {
+        // climate query
         uri = `http://api.informaticslab.co.uk/${variable}/mean/climatology?lat=${lat}&lon=${lon}`;
     }
 
@@ -48,7 +51,6 @@ function askMO(location) {
         })
     })
 }
-
 
 function _askLUIS(appId, subKey, q) {
     var uri = `https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/${appId}?subscription-key=${subKey}&verbose=true&q=${q}`;
@@ -113,17 +115,48 @@ function main() {
                 .then((response) => {
                     switch (response.topScoringIntent.intent) {
                         case("None") :
-                            session.send("Sorry I don't know what your getting at!");
+                            session.send(phrases.unknown);
+                            return;
+                        case "greeting" :
+                            session.beginDialog("/greeting");
+                            return;
+                        case "help" :
+                            session.beginDialog("/help");
                             return;
                         case("getForecast") :
                             session.beginDialog("/getForecast", response.entities);
                             return;
                         case("compareToPast") :
                             session.beginDialog("/compareToPast", response.entities);
-
+                            return;
                     }
                 });
         }]);
+    
+    bot.dialog('/greeting', [
+        (session, args, next) => {
+            var greeting = phrases.greetings[getRandomInt(0,phrases.greetings.length)];
+            session.send(greeting);
+            if (!session.conversationData.greeted) {
+                session.send(phrases.info);
+                phrases.examples.forEach((phrase)=>{
+                   session.send(phrase);
+                });
+                session.conversationData["greeted"] = true;
+            }
+            session.endDialog();
+        }
+    ]);
+
+    bot.dialog('/help', [
+        (session, args, next) => {
+            session.send(phrases.info);
+            phrases.examples.forEach((phrase)=>{
+                session.send(phrase);
+            });
+            session.endDialog();
+        }
+    ]);
 
     bot.dialog('/getForecast', [
         // Get forecast, we need a location.
@@ -190,18 +223,18 @@ function main() {
         },
         (session, args, next) => {
             // args.response
-            session.send("just let me think about the answer to that for a moment");
+            session.send("just let me crunch the numbers!");
             askMO(session.conversationData.location)
-                .then((res) => {
+                .then((fcst) => {
 
                     var variable = getEntityVariable(session.conversationData.condition);
                     var func = getEntityComparator(session.conversationData.condition);
                     var timeframe = getEntityTimeframe(session.conversationData.timebounding);
 
-                    askHist(res.geometry.coordinates[0], res.geometry.coordinates[1], variable, timeframe.start, timeframe.end)
+                    askHist(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, timeframe.start, timeframe.end)
                         .then((response)=> {
 
-                            if(func(res.properties.forecast.current[variable].value, response.value)) {
+                            if(func(fcst.properties.forecast.current[variable].value, response.value)) {
                                 session.send("yes");
                             } else {
                                 session.send("no");
@@ -246,7 +279,7 @@ function getEntityVariable(entity) {
         case "colder" :
             return "temperature";
     }
-};
+}
 
 function getEntityTimeframe(entity) {
     switch(entity) {
@@ -255,6 +288,12 @@ function getEntityTimeframe(entity) {
         default :
             return getDateRange(entity);
     }
-};
+}
+
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min;
+}
 
 main();
