@@ -18,9 +18,9 @@
   "homepage": "https://github.com/met-office-lab/microsoft-hack#readme",
   "dependencies": {
     "botbuilder": "^3.7.0",
+    "chrono": "^1.0.5",
     "nconf": "^0.8.4",
     "request": "^2.79.0",
-    "restify": "^4.3.0",
-    "sugar": "^2.0.4"
+    "restify": "^4.3.0"
   }
 }
