@@ -1,11 +1,11 @@
 'use strict';
 
 var nconf = require('nconf');
-var sugar = require('sugar');
 var restify = require('restify');
-var builder = require('botbuilder');
 var request = require('request');
+var Sugar = require('sugar-date');
 var phrases = require('./phrases');
+var builder = require('botbuilder');
 
 var config = nconf.env().argv().file({file: 'localConfig.json'});
 
@@ -29,11 +29,13 @@ function callAPI(uri) {
 
 function askHistClimate(lat, lon, variable, operation, start, end) {
     var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    console.log(uri);
     return callAPI(uri);
 }
 
 function askHistRange(lat, lon, variable, operation, start, end) {
     var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    console.log(uri);
     return callAPI(uri);
 }
 
@@ -62,8 +64,34 @@ function askLUIS(q) {
 
 function getDateRange(timeBounding) {
 
-	var startDate = new sugar.Date(timeBounding);
-    var endDate = new sugar.Date(timeBounding);
+    var monthNames = [
+        "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"
+    ];
+
+	var startDate = new Sugar.Date(timeBounding);
+    var endDate = new Sugar.Date(timeBounding);
+
+    if (startDate.isValid() == false) {
+        startDate = new Sugar.Date();
+        var split = timeBounding.split(' ');
+        var comparator = split[0];
+        var period = split[1];
+        if (monthNames.includes(period)) {
+            if (comparator == 'last') {
+                while (monthNames[startDate.getMonth()] != period) {
+                    startDate.rewind("1 month");
+                }
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return null;
+        }
+        timeBounding = "month";
+        endDate = new Sugar.Date("" + startDate.format("%c"));
+    }
 
     startDate.rewind("2 years");
     endDate.rewind("2 years");
@@ -82,6 +110,10 @@ function getDateRange(timeBounding) {
     else if (timeBounding.indexOf('year') != -1) {
         startDate.beginningOfYear();
         endDate.endOfYear();
+    }
+    else if (monthNames.includes(timeBounding)) {
+        startDate.beginningOfMonth();
+        endDate.endOfMonth();
     }
 
     var startString = startDate.format("%Y-%m-%d");
@@ -235,7 +267,7 @@ function main() {
                     var operation = getEntityOperation(session.conversationData.condition);
                     session.send("getting there...");
 
-                    askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                    askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
                         .then((response)=> {
 
                             if (func(fcst.properties.forecast.current[variable].value, response.value)) {
@@ -280,9 +312,13 @@ function main() {
                     var operation = getEntityOperation(session.conversationData.condition);
                     session.send("getting there...");
 
-                    askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                    var endpoint = askHistClimate;
+                    if (session.conversationData.timemodifier && session.conversationData.timemodifier == "is")
+                        endpoint = askHistRange;
+
+                    endpoint(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
                         .then((response)=> {
-                            session.send(response.value);
+                            session.send("" + response.value);
                             session.endDialog();
                         })
                         .catch((err) => {
@@ -293,7 +329,6 @@ function main() {
                 });
         }
     ]);
-
 }
 
 function arrayHasItemWithType(array, type) {
@@ -330,6 +365,10 @@ function getEntityVariable(entity) {
         case "coldest" :
             return "temperature";
     }
+
+    if (entity.indexOf("temperature") != -1) {
+        return "temperature";
+    }
 }
 
 function getEntityOperation(entity) {
@@ -345,7 +384,10 @@ function getEntityOperation(entity) {
         case "warmer" :
         case "colder" :
             return "mean";
+    }
 
+    if (entity.indexOf("average") != -1) {
+        return "mean";
     }
 }
 
