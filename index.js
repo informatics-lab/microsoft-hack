@@ -154,9 +154,15 @@ function main() {
             session.send(greeting);
             if (!session.conversationData.greeted) {
                 session.send(phrases.info);
-                phrases.examples.forEach((phrase)=> {
-                    session.send(phrase);
-                });
+                var sample = phrases.exampleIntroduction + "\n";
+                var examples = phrases.examples;
+                for(var i = 0; i < 3; i++) {
+                    var index = getRandomInt(0, examples.length);
+                    var example = examples[index];
+                    examples.splice(index, 1);
+                    sample = sample +` * ${example}\n`;
+                }
+                session.send(sample);
                 session.conversationData["greeted"] = true;
             }
             session.endDialog();
@@ -166,9 +172,15 @@ function main() {
     bot.dialog('/help', [
         (session, args, next) => {
             session.send(phrases.info);
-            phrases.examples.forEach((phrase)=> {
-                session.send(phrase);
-            });
+            var sample = phrases.exampleIntroduction + "\n";
+            var examples = phrases.examples;
+            for(var i = 0; i < 3; i++) {
+                var index = getRandomInt(0, examples.length);
+                var example = examples[index];
+                examples.splice(index, 1);
+                sample = sample +` * ${example}\n`;
+            }
+            session.send(sample);
             session.endDialog();
         }
     ]);
