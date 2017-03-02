@@ -19,7 +19,7 @@ function callAPI(uri) {
             if (!err && response.statusCode == 200) {
                 resolve(JSON.parse(body));
             } else {
-                console.error(err,response);
+                console.error(err, response);
                 resolve(body);
             }
         })
@@ -27,14 +27,20 @@ function callAPI(uri) {
 }
 
 function askHistClimate(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}`;
     console.log(uri);
+    if (start && end) {
+        uri = uri + `&start_date=${start}&end_date=${end}`;
+    }
     return callAPI(uri);
 }
 
 function askHistRange(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}`;
     console.log(uri);
+    if (start && end) {
+        uri = uri + `&start_date=${start}&end_date=${end}`;
+    }
     return callAPI(uri);
 }
 
@@ -155,8 +161,8 @@ function main() {
     });
 
     var connector = new builder.ChatConnector({
-        appId: process.env.MICROSOFT_APP_ID,
-        appPassword: process.env.MICROSOFT_APP_PASSWORD
+        appId: config.get("MICROSOFT_APP_ID"),
+        appPassword: config.get("MICROSOFT_APP_PASSWORD")
     });
     server.post('/api/messages', connector.listen());
 
@@ -170,6 +176,7 @@ function main() {
                 .then((response) => {
                     switch (response.topScoringIntent.intent) {
                         case("None") :
+                            console.log(`None Intent matched: ${session.message.text}`);
                             session.send(phrases.unknown);
                             return;
                         case "greeting" :
@@ -177,6 +184,12 @@ function main() {
                             return;
                         case "help" :
                             session.beginDialog("/help");
+                            return;
+                        case "thanks" :
+                            session.beginDialog("/thanks");
+                            return;
+                        case "goodbye" :
+                            session.beginDialog("/goodbye");
                             return;
                         case("getForecast") :
                             session.beginDialog("/getForecast", response.entities);
@@ -196,9 +209,15 @@ function main() {
             session.send(greeting);
             if (!session.conversationData.greeted) {
                 session.send(phrases.info);
-                phrases.examples.forEach((phrase)=> {
-                    session.send(phrase);
-                });
+                var sample = phrases.exampleIntroduction + "\n";
+                var examples = phrases.examples;
+                for(var i = 0; i < 3; i++) {
+                    var index = getRandomInt(0, examples.length);
+                    var example = examples[index];
+                    examples.splice(index, 1);
+                    sample = sample +` * ${example}\n`;
+                }
+                session.send(sample);
                 session.conversationData["greeted"] = true;
             }
             session.endDialog();
@@ -208,9 +227,29 @@ function main() {
     bot.dialog('/help', [
         (session, args, next) => {
             session.send(phrases.info);
-            phrases.examples.forEach((phrase)=> {
-                session.send(phrase);
-            });
+            var sample = phrases.exampleIntroduction + "\n";
+            var examples = phrases.examples;
+            for(var i = 0; i < 3; i++) {
+                var index = getRandomInt(0, examples.length);
+                var example = examples[index];
+                examples.splice(index, 1);
+                sample = sample +` * ${example}\n`;
+            }
+            session.send(sample);
+            session.endDialog();
+        }
+    ]);
+
+    bot.dialog('/thanks', [
+        (session, args, next) => {
+            session.send(phrases.thanks[getRandomInt(0, phrases.thanks.length -1)]);
+            session.endDialog();
+        }
+    ]);
+
+    bot.dialog('/goodbye', [
+        (session, args, next) => {
+            session.send(phrases.goodbyes[getRandomInt(0, phrases.goodbyes.length -1)]);
             session.endDialog();
         }
     ]);
@@ -234,6 +273,7 @@ function main() {
         },
         (session, args, next) => {
             // args.response
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((response)=> {
                     if (typeof response === "object") {
@@ -268,7 +308,7 @@ function main() {
                 });
             }
 
-            if (!arrayHasItemWithType(args, "location")) {
+            if (!arrayHasItemWithType(args, "location") && !session.conversationData.location) {
                 // Don't have a location, ask for one
                 session.beginDialog("/getLocation");
             } else {
@@ -280,7 +320,7 @@ function main() {
         },
         (session, args, next) => {
             // args.response
-            session.send("just let me crunch the numbers!");
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((fcst) => {
 
@@ -288,19 +328,18 @@ function main() {
                     var func = getEntityComparator(session.conversationData.condition);
                     var timeframe = getEntityTimeframe(session.conversationData.timebounding);
                     var operation = getEntityOperation(session.conversationData.condition);
-                    session.send("getting there...");
+                    session.send(phrases.waiting[getRandomInt(0, phrases.waiting.length - 1)]);
 
-                    askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
-                        .then((response)=> {
-
+                    askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                        .then((response) => {
                             if (func(fcst.properties.forecast.current[variable].value, response.value)) {
-                                session.send("yes");
+                                session.send(affirmativeCompareToPastResponseText(variable, fcst, response));
                             } else {
-                                session.send("no");
+                                session.send(negativeCompareToPastResponseText(variable, fcst, response));
                             }
+                            session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response));
                             session.endDialog();
                         });
-
                 });
         }
     ]);
@@ -315,7 +354,7 @@ function main() {
                 });
             }
 
-            if (!arrayHasItemWithType(args, "location")) {
+            if (!arrayHasItemWithType(args, "location") && !session.conversationData.location) {
                 // Don't have a location, ask for one
                 session.beginDialog("/getLocation");
             } else {
@@ -327,31 +366,86 @@ function main() {
         },
         (session, args, next) => {
             // args.response
-            session.send("just let me crunch the numbers!");
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((fcst) => {
                     var variable = getEntityVariable(session.conversationData.condition);
-                    var timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    var timeframe;
+                    if (session.conversationData.timebounding) {
+                        timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    } else {
+                        timeframe = {start: null, end: null};
+                    }
                     var operation = getEntityOperation(session.conversationData.condition);
-                    session.send("getting there...");
-
-                    var endpoint = askHistClimate;
-                    if (session.conversationData.timemodifier && session.conversationData.timemodifier == "is")
-                        endpoint = askHistRange;
-
-                    endpoint(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
-                        .then((response)=> {
-                            session.send("" + response.value);
-                            session.endDialog();
-                        })
-                        .catch((err) => {
-                            console.error(err);
-                            session.send(phrases.error);
-                            session.endDialog();
-                        });
+                    session.send(phrases.waiting[getRandomInt(0, phrases.waiting.length - 1)]);
+                    if(session.conversationData.timemodifier && session.conversationData.timemodifier === "is") {
+                        askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                            .then((response)=> {
+                                session.send(buildFindOptimalResponseText(variable, operation, fcst, response));
+                                session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response))
+                                session.endDialog();
+                            })
+                            .catch((err) => {
+                                console.error(err);
+                                session.send(phrases.error);
+                                session.endDialog();
+                            });
+                    } else {
+                        askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                            .then((response)=> {
+                                session.send(buildFindOptimalResponseText(variable, operation, fcst, response));
+                                session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response))
+                                session.endDialog();
+                            })
+                            .catch((err) => {
+                                console.error(err);
+                                session.send(phrases.error);
+                                session.endDialog();
+                            });
+                    }
                 });
         }
     ]);
+}
+
+function buildFindOptimalResponseText(variable, operation, fcst, hist) {
+    var str = `The ${operation} ${variable} for the period ${hist.start_date} to ${hist.end_date} in ${fcst.properties.site.name} is ${hist.value}`;
+    return str;
+}
+
+function buildGraphTitle(variable, operation, fcst, hist) {
+    return `${operation} ${variable} for ${fcst.properties.site.name} ${hist.start_date} to ${hist.end_date}`;
+}
+
+function affirmativeCompareToPastResponseText(variable, fcst, hist) {
+    var str = "Yes, ";
+    return compareToPastResponseText(str, variable, fcst, hist);
+};
+
+function negativeCompareToPastResponseText(variable, fcst, hist) {
+    var str = "No, ";
+    return compareToPastResponseText(str, variable, fcst, hist);
+};
+
+function compareToPastResponseText(str, variable, fcst, hist) {
+    return str + `todays ${variable} in ${fcst.properties.site.name} is 
+    ${fcst.properties.forecast.current[variable].value}${fcst.properties.forecast.current[variable].units} 
+    but the uk average for the period between ${hist.start_date} and ${hist.end_date} is actually 
+    ${hist.value}${fcst.properties.forecast.current[variable].units}`;
+}
+
+
+function buildHeroCardResponse(session, title, hist) {
+    var msg = new builder.Message(session)
+        .attachments([
+            new builder.HeroCard(session)
+                .title(title)
+                .images([
+                    builder.CardImage.create(session, hist.graph)
+                ])
+                .tap(builder.CardAction.openUrl(session, hist.graph))
+        ]);
+    return msg;
 }
 
 function arrayHasItemWithType(array, type) {

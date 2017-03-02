@@ -1,11 +1,33 @@
 {
   "greetings": ["Hi", "Hello", "Howdy", "What's up!"],
   "info": "I'm **Cim**. Ask me questions about **weather & climate in the UK**. I'll do my best to crunch through the numbers, and get the answers to your questions.",
+  "thinking": [
+    "hmm, just let me crunch the numbers...",
+    "ok, let me calculate that for you...",
+    "great question, let me find the answer to that"
+  ],
+  "waiting": [
+    "this is a tough one...",
+    "still calculating...",
+    "the answer is around here somewhere...",
+    "almost there...",
+    "checking archives..."
+  ],
+  "exampleIntroduction" : "Some example phrases that I can answer are:",
   "examples": [
-    "Some example phrases that I can answer are:",
     "What is the weather in London today?",
     "Is the weather in Bristol hotter than usual today?",
     "What was the hottest day of the year last year?"
+  ],
+  "thanks": [
+    "no problem",
+    "glad to have helped",
+    "my pleasure"
+  ],
+  "goodbyes": [
+    "hope to see you again soon",
+    "cheerio",
+    "catch you later"
   ],
   "unknown": "Sorry, I don't know how to answer that. Ask for help to find out more about what I can do for you.",
   "error": "Sorry, something went wrong with the answer to that question."
