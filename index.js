@@ -3,7 +3,6 @@
 var nconf = require('nconf');
 var restify = require('restify');
 var request = require('request');
-var Sugar = require('sugar-date');
 var phrases = require('./phrases');
 var builder = require('botbuilder');
 
@@ -62,64 +61,88 @@ function askLUIS(q) {
     return _askLUIS(config.get("APP_ID"), config.get("SUB_KEY"), q);
 }
 
+var _monthNames = [
+    "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"
+];
+
+function getDateRangeLastForm(match) {
+
+    var now = new Date();
+    var startDate = new Date(now.getTime());
+    var endDate = null;
+
+    switch (match[1]) {
+
+        case 'week' : {
+            startDate.setDate(startDate.getDate() - (7 + (now.getDay() - 1)));
+            endDate = new Date(startDate.getTime());
+            endDate.setDate(endDate.getDate() + 7);
+        }
+        break;
+
+        case 'month' : {
+            startDate.setMonth(startDate.getMonth() - 1);
+            startDate.setDate(1);
+            endDate = new Date(startDate.getTime());
+            endDate.setDate(new Date(startDate.getDate(), startDate.getMonth() + 1, 0).getDate());
+        }
+        break;
+
+        case 'year': {
+            startDate.setYear(startDate.getFullYear() - 1);
+            startDate.setMonth(0);
+            startDate.setDate(1);
+            endDate = new Date(startDate.getTime());
+            endDate.setMonth(11);
+            endDate.setDate(31);
+        }
+        break;
+
+        default: {
+            if (_monthNames.includes(match[1])) {
+                startDate.setYear(startDate.getFullYear() - 1);
+                startDate.setMonth(_monthNames.indexOf(match[1]));
+                startDate.setDate(1);
+                endDate = new Date(startDate.getTime());
+                endDate.setDate(new Date(startDate.getDate(), startDate.getMonth() + 1, 0).getDate());
+            }
+        }
+        break;
+    }
+
+    return [startDate, endDate];
+}
+
 function getDateRange(timeBounding) {
 
-    var monthNames = [
-        "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"
-    ];
+    var regex = /last (.+)/;
+    var match = regex.exec(timeBounding);
 
-	var startDate = new Sugar.Date(timeBounding);
-    var endDate = new Sugar.Date(timeBounding);
+    var startDate = null;
+    var endDate = null;
 
-    if (startDate.isValid() == false) {
-        startDate = new Sugar.Date();
-        var split = timeBounding.split(' ');
-        var comparator = split[0];
-        var period = split[1];
-        if (monthNames.includes(period)) {
-            if (comparator == 'last') {
-                while (monthNames[startDate.getMonth()] != period) {
-                    startDate.rewind("1 month");
-                }
-            }
-            else {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
-        timeBounding = "month";
-        endDate = new Sugar.Date("" + startDate.format("%c"));
+    if (match && match.length > 0) {
+        var dateRange = getDateRangeLastForm(match);
+        startDate = dateRange[0];
+        endDate = dateRange[1];
     }
 
-    startDate.rewind("2 years");
-    endDate.rewind("2 years");
-
-    if (timeBounding.indexOf("day") != -1) {
-        endDate = endDate.advance("1 day");
-    }
-    else if (timeBounding.indexOf('week') != -1) {
-        startDate.beginningOfWeek();
-        endDate.endOfWeek();
-    }
-    else if (timeBounding.indexOf('month') != -1) {
-        startDate.beginningOfMonth();
-        endDate.endOfMonth();
-    }
-    else if (timeBounding.indexOf('year') != -1) {
-        startDate.beginningOfYear();
-        endDate.endOfYear();
-    }
-    else if (monthNames.includes(timeBounding)) {
-        startDate.beginningOfMonth();
-        endDate.endOfMonth();
+    function format(date) {
+        var formatString = "" + date.getFullYear();
+        formatString += "-" + ("0" + (date.getMonth() + 1)).slice(-2);
+        formatString += "-" + ("0" + date.getDate()).slice(-2);
+        return formatString;
     }
 
-    var startString = startDate.format("%Y-%m-%d");
-    var endString = endDate.format("%Y-%m-%d");
+    // Pretend it's 2015 (to fit data range)
+    startDate.setYear(startDate.getFullYear() - 2);
+    endDate.setYear(endDate.getFullYear() - 2);
 
-	return { start : startString, end: endString };
+    if (startDate && endDate) {
+        return { start: format(startDate), end : format(endDate) };
+    }
+
+    return null;
 }
 
 function main() {
