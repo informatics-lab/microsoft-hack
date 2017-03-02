@@ -20,7 +20,7 @@ function callAPI(uri) {
             if (!err && response.statusCode == 200) {
                 resolve(JSON.parse(body));
             } else {
-                console.error(err,response);
+                console.error(err, response);
                 resolve(body);
             }
         })
@@ -28,12 +28,18 @@ function callAPI(uri) {
 }
 
 function askHistClimate(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}`;
+    if (start && end) {
+        uri = uri + `&start_date=${start}&end_date=${end}`;
+    }
     return callAPI(uri);
 }
 
 function askHistRange(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}&start_date=${start}&end_date=${end}`;
+    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}`;
+    if (start && end) {
+        uri = uri + `&start_date=${start}&end_date=${end}`;
+    }
     return callAPI(uri);
 }
 
@@ -62,7 +68,7 @@ function askLUIS(q) {
 
 function getDateRange(timeBounding) {
 
-	var startDate = new sugar.Date(timeBounding);
+    var startDate = new sugar.Date(timeBounding);
     var endDate = new sugar.Date(timeBounding);
 
     startDate.rewind("2 years");
@@ -87,7 +93,7 @@ function getDateRange(timeBounding) {
     var startString = startDate.format("%Y-%m-%d");
     var endString = endDate.format("%Y-%m-%d");
 
-	return { start : startString, end: endString };
+    return {start: startString, end: endString};
 }
 
 function main() {
@@ -100,8 +106,8 @@ function main() {
     });
 
     var connector = new builder.ChatConnector({
-        appId: process.env.MICROSOFT_APP_ID,
-        appPassword: process.env.MICROSOFT_APP_PASSWORD
+        appId: config.get("MICROSOFT_APP_ID"),
+        appPassword: config.get("MICROSOFT_APP_PASSWORD")
     });
     server.post('/api/messages', connector.listen());
 
@@ -115,6 +121,7 @@ function main() {
                 .then((response) => {
                     switch (response.topScoringIntent.intent) {
                         case("None") :
+                            console.log(`None Intent matched: ${session.message.text}`);
                             session.send(phrases.unknown);
                             return;
                         case "greeting" :
@@ -122,6 +129,12 @@ function main() {
                             return;
                         case "help" :
                             session.beginDialog("/help");
+                            return;
+                        case "thanks" :
+                            session.beginDialog("/thanks");
+                            return;
+                        case "goodbye" :
+                            session.beginDialog("/goodbye");
                             return;
                         case("getForecast") :
                             session.beginDialog("/getForecast", response.entities);
@@ -160,6 +173,20 @@ function main() {
         }
     ]);
 
+    bot.dialog('/thanks', [
+        (session, args, next) => {
+            session.send(phrases.thanks[getRandomInt(0, phrases.thanks.length -1)]);
+            session.endDialog();
+        }
+    ]);
+
+    bot.dialog('/goodbye', [
+        (session, args, next) => {
+            session.send(phrases.goodbyes[getRandomInt(0, phrases.goodbyes.length -1)]);
+            session.endDialog();
+        }
+    ]);
+
     bot.dialog('/getForecast', [
         // Get forecast, we need a location.
         // Caller may have passed us location in entities
@@ -179,6 +206,7 @@ function main() {
         },
         (session, args, next) => {
             // args.response
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((response)=> {
                     if (typeof response === "object") {
@@ -213,7 +241,7 @@ function main() {
                 });
             }
 
-            if (!arrayHasItemWithType(args, "location")) {
+            if (!arrayHasItemWithType(args, "location") && !session.conversationData.location) {
                 // Don't have a location, ask for one
                 session.beginDialog("/getLocation");
             } else {
@@ -225,7 +253,7 @@ function main() {
         },
         (session, args, next) => {
             // args.response
-            session.send("just let me crunch the numbers!");
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((fcst) => {
 
@@ -233,19 +261,18 @@ function main() {
                     var func = getEntityComparator(session.conversationData.condition);
                     var timeframe = getEntityTimeframe(session.conversationData.timebounding);
                     var operation = getEntityOperation(session.conversationData.condition);
-                    session.send("getting there...");
+                    session.send(phrases.waiting[getRandomInt(0, phrases.waiting.length - 1)]);
 
                     askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
-                        .then((response)=> {
-
+                        .then((response) => {
                             if (func(fcst.properties.forecast.current[variable].value, response.value)) {
-                                session.send("yes");
+                                session.send(affirmativeCompareToPastResponseText(variable, fcst, response));
                             } else {
-                                session.send("no");
+                                session.send(negativeCompareToPastResponseText(variable, fcst, response));
                             }
+                            session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response));
                             session.endDialog();
                         });
-
                 });
         }
     ]);
@@ -260,7 +287,7 @@ function main() {
                 });
             }
 
-            if (!arrayHasItemWithType(args, "location")) {
+            if (!arrayHasItemWithType(args, "location") && !session.conversationData.location) {
                 // Don't have a location, ask for one
                 session.beginDialog("/getLocation");
             } else {
@@ -272,28 +299,88 @@ function main() {
         },
         (session, args, next) => {
             // args.response
-            session.send("just let me crunch the numbers!");
+            session.send(phrases.thinking[getRandomInt(0, phrases.thinking.length - 1)]);
             askMO(session.conversationData.location)
                 .then((fcst) => {
                     var variable = getEntityVariable(session.conversationData.condition);
-                    var timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    var timeframe;
+                    if (session.conversationData.timebounding) {
+                        timeframe = getEntityTimeframe(session.conversationData.timebounding);
+                    } else {
+                        timeframe = {start: null, end: null};
+                    }
                     var operation = getEntityOperation(session.conversationData.condition);
-                    session.send("getting there...");
+                    session.send(phrases.waiting[getRandomInt(0, phrases.waiting.length - 1)]);
+                    if(session.conversationData.timemodifier && session.conversationData.timemodifier === "is") {
+                        askHistClimate(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                            .then((response)=> {
+                                session.send(buildFindOptimalResponseText(variable, operation, fcst, response));
+                                session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response))
+                                session.endDialog();
+                            })
+                            .catch((err) => {
+                                console.error(err);
+                                session.send(phrases.error);
+                                session.endDialog();
+                            });
+                    } else {
+                        askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
+                            .then((response)=> {
+                                session.send(buildFindOptimalResponseText(variable, operation, fcst, response));
+                                session.send(buildHeroCardResponse(session, buildGraphTitle(variable, operation, fcst, response), response))
+                                session.endDialog();
+                            })
+                            .catch((err) => {
+                                console.error(err);
+                                session.send(phrases.error);
+                                session.endDialog();
+                            });
+                    }
 
-                    askHistRange(fcst.geometry.coordinates[0], fcst.geometry.coordinates[1], variable, operation, timeframe.start, timeframe.end)
-                        .then((response)=> {
-                            session.send(response.value);
-                            session.endDialog();
-                        })
-                        .catch((err) => {
-                            console.error(err);
-                            session.send(phrases.error);
-                            session.endDialog();
-                        });
                 });
         }
     ]);
 
+}
+
+function buildFindOptimalResponseText(variable, operation, fcst, hist) {
+    var str = `The ${operation} ${variable} for the period ${hist.start_date} to ${hist.end_date} in ${fcst.properties.site.name} is ${hist.value}`;
+    return str;
+}
+
+function buildGraphTitle(variable, operation, fcst, hist) {
+    return `${operation} ${variable} for ${fcst.properties.site.name} ${hist.start_date} to ${hist.end_date}`;
+}
+
+function affirmativeCompareToPastResponseText(variable, fcst, hist) {
+    var str = "Yes, ";
+    return compareToPastResponseText(str, variable, fcst, hist);
+};
+
+function negativeCompareToPastResponseText(variable, fcst, hist) {
+    var str = "No, ";
+    return compareToPastResponseText(str, variable, fcst, hist);
+};
+
+function compareToPastResponseText(str, variable, fcst, hist) {
+    return str + `todays ${variable} in ${fcst.properties.site.name} is 
+    ${fcst.properties.forecast.current[variable].value}${fcst.properties.forecast.current[variable].units} 
+    but the uk average for the period between ${hist.start_date} and ${hist.end_date} is actually 
+    ${hist.value}${fcst.properties.forecast.current[variable].units}`;
+}
+
+
+function buildHeroCardResponse(session, title, hist) {
+    var msg = new builder.Message(session)
+        .attachments([
+            new builder.HeroCard(session)
+                .title(title)
+                .images([
+                    builder.CardImage.create(session, hist.graph)
+                ])
+                .tap(builder.CardAction.openUrl(session, hist.graph))
+        ]);
+    return msg;
 }
 
 function arrayHasItemWithType(array, type) {
