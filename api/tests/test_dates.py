@@ -1,4 +1,4 @@
-from bot.data import expand_range, expand_years
+from bot.data import expand_range, expand_years, date_inputs
 
 import unittest
 import datetime
@@ -69,12 +69,39 @@ class TestExpandRange(unittest.TestCase):
                     datetime.date(2016, 3, 1)]
         self.assertEqual(expand_range(start_date, end_date), expected)
 
-
     def test_not_leap_year(self):
         start_date = datetime.date(2017, 2, 28)
         end_date = datetime.date(2017, 3, 1)
         expected = [datetime.date(2017, 2, 28), datetime.date(2017, 3, 1)]
         self.assertEqual(expand_range(start_date, end_date), expected)
+
+
+class TestHandleInputs(unittest.TestCase):
+    def test_with_no_date(self):
+        expected = (datetime.datetime(1960, 1, 1, 12), datetime.datetime(2015, 12, 31, 12))
+        actual = date_inputs()
+        self.assertEqual(actual, expected)
+
+    def test_with_one_date(self):
+        date = '2010-01-01'
+        expected = (datetime.datetime(2010, 1, 1, 12), datetime.datetime(2010, 1, 1, 12))
+        self.assertEqual(date_inputs(date=date), expected)
+
+    def test_with_start_date(self):
+        start_date = '1992-03-10'
+        expected = (datetime.datetime(1992, 3, 10, 12), datetime.datetime(2015, 12, 31, 12))
+        self.assertEqual(date_inputs(start_date=start_date), expected)
+
+    def test_with_end_date(self):
+        end_date = '1984-02-29'
+        expected = (datetime.datetime(1960, 1, 1, 12), datetime.datetime(1984, 2, 29, 12))
+        self.assertEqual(date_inputs(end_date=end_date), expected)
+
+    def test_with_start_and_end(self):
+        start_date = '2000-01-01'
+        end_date = '2001-01-01'
+        expected = (datetime.datetime(2000, 1, 1, 12), datetime.datetime(2001, 1, 1, 12))
+        self.assertEqual(date_inputs(start_date=start_date, end_date=end_date), expected)
 
 
 if __name__ == '__main__':
