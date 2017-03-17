@@ -3,7 +3,6 @@ from collections import Iterable
 
 from dateutil.relativedelta import relativedelta
 from multipledispatch import dispatch
-from functools import partial
 
 
 @dispatch((datetime.datetime, datetime.date), int)

@@ -6,3 +6,4 @@ flask
 iris
 python-dateutil
 multipledispatch
+boto3

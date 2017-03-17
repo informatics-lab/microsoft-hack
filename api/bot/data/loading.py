@@ -1,6 +1,7 @@
 import glob
-from types import *
+
 import iris
+from braceexpand import braceexpand
 from multipledispatch import dispatch
 
 
@@ -10,6 +11,7 @@ class Parameter(object):
         self.data_path = data_path
 
     def _load(self, filenames):
+        print(filenames)
         cubes = iris.load(filenames)
         return cubes.concatenate_cube()
 
@@ -20,8 +22,12 @@ class Parameter(object):
 
     @dispatch(str)
     def load(self, pattern):
-        filenames = glob.glob('{}/*{}*'.format(self.data_path, pattern))
-        return self._load(filenames)
+        potential_filenames = braceexpand('{}/*{}*'.format(self.data_path, pattern))
+        filenames = list(map(lambda x: glob.glob(x), potential_filenames))
+        flat_filenames = [f for filename in filenames for f in filename]
+
+        print(flat_filenames)
+        return self._load(flat_filenames)
 
 
 class Parameters(object):
