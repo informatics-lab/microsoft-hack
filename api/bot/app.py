@@ -14,11 +14,6 @@ from bot.settings import DATA_PATH
 app = Flask(__name__)
 
 
-@app.route("/")
-def hello():
-    return "Hello, World!"
-
-
 @app.route("/<parameter>/<operation>/climatology")
 def climate(parameter, operation):
     start_input = request.args.get('start_date', None)
@@ -128,4 +123,4 @@ def upload_image(byte_data):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run('0.0.0.0')
