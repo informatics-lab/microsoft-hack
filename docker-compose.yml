@@ -17,7 +17,9 @@ services:
   dockergen:
     image: jwilder/docker-gen
     container_name: nginx-docker-gen
-    entrypoint: /usr/local/bin/docker-gen -notify-sighup nginx -watch -only-exposed -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
+    expose:
+      - 55555
+    entrypoint: /usr/local/bin/docker-gen -notify-sighup  nginx -watch -only-exposed /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
     volumes:
       - 'nginx-config:/etc/nginx/conf.d'
       - 'nginx-certs:/etc/nginx/certs'
@@ -25,7 +27,8 @@ services:
       - 'nginx-webroot:/usr/share/nginx/html'
       - '/var/run/docker.sock:/tmp/docker.sock:ro'
       - './nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro'
-
+    networks:
+      - proxy-tier
   letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     container_name: letsencrypt-nginx-proxy-companion
@@ -37,17 +40,17 @@ services:
       - 'nginx-vhosts:/etc/nginx/vhost.d'
       - 'nginx-webroot:/usr/share/nginx/html'
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
-
   api:
     build: ./api
     container_name: api
     environment:
-      - VIRTUAL_HOST=api.local
+      - VIRTUAL_HOST=${BOT_API_DNS}
       - VIRTUAL_NETWORK=nginx-proxy
-      - LETSENCRYPT_HOST=api.informaticslab.co.uk
+      - LETSENCRYPT_HOST=api2.informaticslab.co.uk
       - LETSENCRYPT_EMAIL=alex.hilson@informaticslab.co.uk
     networks:
       - proxy-tier
+
 volumes:
   nginx-config:
   nginx-certs:
