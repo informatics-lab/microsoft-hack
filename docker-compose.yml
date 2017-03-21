@@ -40,9 +40,9 @@ services:
       - 'nginx-vhosts:/etc/nginx/vhost.d'
       - 'nginx-webroot:/usr/share/nginx/html'
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
-  api:
-    build: ./api
-    container_name: api
+  data_api:
+    build: ./data_api
+    container_name: data_api
     environment:
       - VIRTUAL_HOST=${BOT_API_DNS}
       - VIRTUAL_NETWORK=nginx-proxy
@@ -50,6 +50,9 @@ services:
       - LETSENCRYPT_EMAIL=alex.hilson@informaticslab.co.uk
     networks:
       - proxy-tier
+  
+  bot_api:
+    build: ./bot_api
 
 volumes:
   nginx-config:
