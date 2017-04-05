@@ -5,8 +5,8 @@ import uuid
 import iris
 import boto3
 from flask import Flask, request, jsonify
-import matplotlib.pyplot as plt
-import iris.plot as iplt
+import holoviews as hv
+import geoviews as gv
 
 from bot.data import Parameters, expand_range, expand_years, date_inputs, CubeHandler
 from bot.settings import DATA_PATH
@@ -32,7 +32,7 @@ def climate(parameter, operation):
     start_date, end_date = date_inputs(date_input, start_input, end_input)
 
     all_days = expand_range(start_date, end_date)
-    all_years = expand_years(all_days, 100)
+    all_years = expand_years(all_days, 20)
 
     return process_cube(all_years, parameter, lon, lat, operation)
 
@@ -96,14 +96,15 @@ def extract_times(cube, times):
 def graph(cube):
     title = cube.standard_name.title().replace('_', ' ')
 
-    iplt.plot(cube)
-    # plt.xticks(rotation=45)
-    plt.ylabel('{} ({})'.format(title, str(cube.units)))
+    dataset = gv.Dataset(cube)
+    plot = dataset.to(hv.Curve, label=title, group='')
 
+    renderer = hv.Store.renderers['matplotlib']
+    renderer.size = 200
     img_data = io.BytesIO()
-    plt.savefig(img_data, format='png')
-    plt.clf()
+    renderer.save(plot, img_data)
     img_data.seek(0)
+
     s3_url = upload_image(img_data)
     return s3_url
 

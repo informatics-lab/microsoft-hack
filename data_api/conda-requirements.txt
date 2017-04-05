@@ -8,3 +8,6 @@ iris
 python-dateutil
 multipledispatch
 boto3
+holoviews>=1.6.2
+geoviews
+numpy<1.12 # Iris compatibility problems with conda-forge pr #2440

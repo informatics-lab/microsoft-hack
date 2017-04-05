@@ -11,7 +11,6 @@ class Parameter(object):
         self.data_path = data_path
 
     def _load(self, filenames):
-        print(filenames)
         cubes = iris.load(filenames)
         return cubes.concatenate_cube()
 
@@ -26,7 +25,6 @@ class Parameter(object):
         filenames = list(map(lambda x: glob.glob(x), potential_filenames))
         flat_filenames = [f for filename in filenames for f in filename]
 
-        print(flat_filenames)
         return self._load(flat_filenames)
 
 

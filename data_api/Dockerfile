@@ -3,6 +3,8 @@ RUN apt-get update -y
 COPY . /app
 WORKDIR /app
 RUN conda config --add channels SciTools
+RUN conda config --add channels conda-forge
+RUN conda config --add channels ioam
 RUN conda create -n api --file conda-requirements.txt
 RUN /bin/bash -c "source activate api; pip install ."
 
