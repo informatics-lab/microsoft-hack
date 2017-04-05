@@ -29,6 +29,7 @@ services:
       - './nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro'
     networks:
       - proxy-tier
+
   letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     container_name: letsencrypt-nginx-proxy-companion
@@ -40,19 +41,27 @@ services:
       - 'nginx-vhosts:/etc/nginx/vhost.d'
       - 'nginx-webroot:/usr/share/nginx/html'
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
+
   data_api:
     build: ./data_api
     container_name: data_api
-    environment:
-      - VIRTUAL_HOST=${BOT_API_DNS}
-      - VIRTUAL_NETWORK=nginx-proxy
-      - LETSENCRYPT_HOST=api2.informaticslab.co.uk
-      - LETSENCRYPT_EMAIL=alex.hilson@informaticslab.co.uk
+    volumes:
+      - /opt/data:/opt/data
     networks:
       - proxy-tier
   
   bot_api:
     build: ./bot_api
+    container_name: bot_api
+    links:
+      - data_api
+    environment:
+      - VIRTUAL_HOST=${BOT_API_DNS}
+      - VIRTUAL_NETWORK=nginx-proxy
+      - LETSENCRYPT_HOST=${BOT_API_DNS}
+      - LETSENCRYPT_EMAIL=alex.hilson@informaticslab.co.uk
+    networks:
+      - proxy-tier
 
 volumes:
   nginx-config:
