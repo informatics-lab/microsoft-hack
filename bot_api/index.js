@@ -409,7 +409,12 @@ function main() {
 }
 
 function buildFindOptimalResponseText(variable, operation, fcst, hist) {
-    var str = `The ${operation} ${variable} for the period ${hist.start_date} to ${hist.end_date} in ${fcst.properties.site.name} is ${hist.value}`;
+    var str = `The peak ${operation} ${variable} for the period ${hist.start_date} to ${hist.end_date} in ${fcst.properties.site.name} is ${hist.value}`;
+    if(hist.time_answer_start ===  hist.time_answer_end) {
+        str = str + ` on the date ${hist.time_answer_start}`
+    } else {
+        str = str + ` between the dates ${hist.time_answer_start} and ${hist.time_answer_end}`;
+    }
     return str;
 }
 
@@ -428,9 +433,9 @@ function negativeCompareToPastResponseText(variable, fcst, hist) {
 };
 
 function compareToPastResponseText(str, variable, fcst, hist) {
-    return str + `todays ${variable} in ${fcst.properties.site.name} is 
+    return str + `todays peak ${variable} in ${fcst.properties.site.name} is 
     ${fcst.properties.forecast.current[variable].value}${fcst.properties.forecast.current[variable].units} 
-    but the uk average for the period between ${hist.start_date} and ${hist.end_date} is actually 
+    but the average for this place in the period between ${hist.start_date} and ${hist.end_date} is actually 
     ${hist.value}${fcst.properties.forecast.current[variable].units}`;
 }
 
