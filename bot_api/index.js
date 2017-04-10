@@ -27,7 +27,7 @@ function callAPI(uri) {
 }
 
 function askHistClimate(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}`;
+    var uri = `http://data_api:5000/${variable}/${operation}/climatology?lat=${lat}&lon=${lon}`;
     console.log(uri);
     if (start && end) {
         uri = uri + `&start_date=${start}&end_date=${end}`;
@@ -36,7 +36,7 @@ function askHistClimate(lat, lon, variable, operation, start, end) {
 }
 
 function askHistRange(lat, lon, variable, operation, start, end) {
-    var uri = `http://api.informaticslab.co.uk/${variable}/${operation}/range?lat=${lat}&lon=${lon}`;
+    var uri = `http://data_api:5000/${variable}/${operation}/range?lat=${lat}&lon=${lon}`;
     console.log(uri);
     if (start && end) {
         uri = uri + `&start_date=${start}&end_date=${end}`;
