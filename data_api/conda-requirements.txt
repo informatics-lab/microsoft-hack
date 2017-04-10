@@ -1,0 +1,13 @@
+# Use this file to create a conda environment using:
+# conda create -n <name> --file conda-requirements.txt
+
+# Mandatory dependencies
+python=3.5.*
+flask
+iris
+python-dateutil
+multipledispatch
+boto3
+holoviews>=1.6.2
+geoviews
+numpy<1.12 # Iris compatibility problems with conda-forge pr #2440

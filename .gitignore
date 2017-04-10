@@ -57,3 +57,10 @@ jspm_packages
 
 #private conf
 localConfig.json
+
+# python
+*.pyc
+*.egg-info
+
+# terraform
+*.tfstate*
