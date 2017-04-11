@@ -227,10 +227,8 @@ function main() {
             session.send(phrases.info);
             var sample = phrases.exampleIntroduction + "\n";
             var examples = phrases.examples;
-            for(var i = 0; i < 3; i++) {
-                var index = getRandomInt(0, examples.length);
-                var example = examples[index];
-                examples.splice(index, 1);
+            for(var i = 0; i < phrases.examples.length; i++) {
+                var example = examples[i];
                 sample = sample +` * ${example}\n`;
             }
             session.send(sample);
