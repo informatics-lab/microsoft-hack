@@ -1,3 +1,18 @@
+variable app_id {}
+variable sub_key {}
+variable microsoft_app_id {}
+variable microsoft_app_password {}
+
+data "template_file" "secrets" {
+  template = "${file("localConfig.tpl")}"
+  vars {
+    app_id = "${var.app_id}"
+    sub_key = "${var.sub_key}"
+    microsoft_app_id = "${var.microsoft_app_id}"
+    microsoft_app_password = "${var.microsoft_app_password}"
+  }
+}
+
 resource "aws_security_group" "climate-bot" {
   name = "climate-bot"
 }
@@ -92,8 +107,14 @@ resource "aws_instance" "climate-bot" {
     destination = "/opt/climate-bot"
   }
 
+  provisioner "file" {
+    content = "${data.template_file.secrets.rendered}"
+    destination = "/opt/climate-bot/bot_api/localConfig.json"
+  }
+
   provisioner "remote-exec" {
     inline = [
+      "chmod 600 /opt/climate-bot/bot_api/localConfig.json",
       "while [ ! -f /usr/local/bin/docker-compose ]; do sleep 20; done",
       "echo BOT_API_DNS=${var.dns} > /opt/climate-bot/.env",
       "cd /opt/climate-bot",
